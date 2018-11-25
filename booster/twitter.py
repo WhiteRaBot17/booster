@@ -37,7 +37,7 @@ class Booster(object):
         threading.Thread(target=self.loop_favorite).start()
         threading.Thread(target=self.loop_follow).start()
         threading.Thread(target=self.loop_search).start()
-#        threading.Thread(target=self.loop_trend).start()
+        #threading.Thread(target=self.loop_trend).start()
 
     def login(self):
         try:
@@ -64,11 +64,11 @@ class Booster(object):
     def loop_favorite(self):
         while True:
             try:
-                for tweet in tweepy.Cursor(api.home_timeline, exclude_replies=True).items(50):
+                for tweet in tweepy.Cursor(self.api.home_timeline, exclude_replies=True).items(50):
                     if tweet.user.screen_name != me.screen_name:
                         if not tweet.favorited:
                             if random.choice((True, False, False, False, False)):
-                                api.create_favorite(tweet.id)
+                                self.api.create_favorite(tweet.id)
                                 self.favorites += 1
                                 debug.alert('Favorited a friends tweet!')
                     time.sleep(30)
@@ -80,18 +80,18 @@ class Booster(object):
     def loop_follow(self):
         while True:
             try:
-                followers   = api.followers_ids(me.screen_name)
-                friends     = api.friends_ids(me.screen_name)
+                followers   = self.api.followers_ids(me.screen_name)
+                friends     = self.api.friends_ids(me.screen_name)
                 non_friends = [friend for friend in followers if friend not in friends]
                 debug.action('Following back {0} supporters...'.format(len(non_friends)))
                 for follower in non_friends:
-                    api.create_friendship(follower)
+                    self.api.create_friendship(follower)
                     self.follows += 1
                     debug.alert('Followed back a follower!')
                     if self.follows >= self.max_follows:
                         break
                     if self.send_message:
-                        api.send_direct_message(screen_name=follower, text=self.message)
+                        self.api.send_direct_message(screen_name=follower, text=self.message)
                     time.sleep(30)
             except tweepy.TweepError as ex:
                 debug.error('Error occured in the follow loop!', ex)
@@ -102,11 +102,11 @@ class Booster(object):
         while True:
             try:
                 query = random.choice(config.boost_keywords)
-                for item in api.search(q='#' + query, count=50, lang='en', result_type='recent'):
+                for item in self.api.search(q='#' + query, count=50, lang='en', result_type='recent'):
                     if not item.user.following and not item.favorited:
                         try:
-                            api.create_favorite(item.id)
-                            api.create_friendship(item.user.screen_name)
+                            self.api.create_favorite(item.id)
+                            self.api.create_friendship(item.user.screen_name)
                             self.favorites += 1
                             self.follows += 1
                             debug.alert('Followed a booster twitter!')
@@ -155,11 +155,11 @@ class Booster(object):
     def ratio_check(self):
         if self.follows >= max_follows:
             time.sleep(86400)
-        if me.friends_count >= 2000:
-            ratio = me.friends_count + (me.followers_count/10)
-            if me.friends_count >= ratio:
+        if self.me.friends_count >= 2000:
+            ratio = self.me.friends_count + (self.me.followers_count/10)
+            if self.me.friends_count >= ratio:
                 debug.action('Following to follower ratio is off! Starting the unfollow loop...')
-                unfollow_loop()
+                self.loop_unfollow()
 
     def stats(self):
         debug.action('SceenName  : ' + self.me.screen_name)
